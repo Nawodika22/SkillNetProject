@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import MatchingDashboard from './pages/MatchingDashboard'
 import {
   ArrowRight, BriefcaseBusiness, Check, ChevronDown, CircleUserRound,
   Compass, KeyRound, LogOut, MapPin, Plus, Search, ShieldCheck, Sparkles,
@@ -177,6 +178,9 @@ function Workspace({ auth, setNotice, onLogout }) {
   const [roster, setRoster] = useState([])
   const [loading, setLoading] = useState(false)
 
+  // Member 3 State: Selected Vacancy to match
+  const [selectedVacancyId, setSelectedVacancyId] = useState(null)
+
   // Member 2 States: Vacancy Management
   const [vacancies, setVacancies] = useState([])
   const [vacancyForm, setVacancyForm] = useState({
@@ -260,6 +264,7 @@ function Workspace({ auth, setNotice, onLogout }) {
   const handleDeleteVacancy = async (id) => {
     try {
       await vacancyApi.delete(id)
+      if (selectedVacancyId === id) setSelectedVacancyId(null)
       setNotice({ type: 'success', text: 'Vacancy deleted.' })
       loadVacancies()
     } catch (error) {
@@ -358,9 +363,13 @@ function Workspace({ auth, setNotice, onLogout }) {
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <button
                       className="button button-small button-quiet"
-                      onClick={() => alert(`Member 3 matching engine will load matches for Vacancy #${v.vacancyId}`)}
+                      style={{ 
+                        background: selectedVacancyId === v.vacancyId ? '#0284c7' : undefined,
+                        color: selectedVacancyId === v.vacancyId ? '#fff' : undefined
+                      }}
+                      onClick={() => setSelectedVacancyId(selectedVacancyId === v.vacancyId ? null : v.vacancyId)}
                     >
-                      Find matches
+                      {selectedVacancyId === v.vacancyId ? 'Close matches' : 'Find matches'}
                     </button>
                     <button
                       className="button button-small button-quiet"
@@ -381,6 +390,11 @@ function Workspace({ auth, setNotice, onLogout }) {
               )}
             </div>
           </div>
+
+          {/* Member 3: Matching & Notification Section */}
+          {selectedVacancyId && (
+            <MatchingDashboard vacancyId={selectedVacancyId} />
+          )}
 
           {/* Member 1: Worker Roster */}
           <div className="roster-panel">
