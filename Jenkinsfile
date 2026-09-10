@@ -20,7 +20,7 @@ pipeline {
         stage('Build & Deploy with Docker Compose') {
             steps {
                 echo 'Building Docker images and starting SkillNet containers...'
-                bat 'docker compose down --remove-orphans'
+                bat 'docker compose down --remove-orphans || rem'
                 bat 'docker compose build --parallel=false'
                 bat 'docker compose up -d'
             }
@@ -51,8 +51,9 @@ pipeline {
         }
         failure {
             echo 'Pipeline encountered an error. Printing container logs...'
-            bat 'docker compose logs --tail=50'
+            bat 'docker compose logs --tail=50 || rem'
         }
     }
 }
+
 
