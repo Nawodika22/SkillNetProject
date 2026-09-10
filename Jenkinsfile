@@ -28,6 +28,7 @@ pipeline {
             steps {
                 echo 'Building Docker images sequentially to ensure network stability...'
                 bat 'docker compose down --remove-orphans || exit 0'
+                bat 'docker rm -f skillnet-mysql skillnet-phpmyadmin skillnet-user-service skillnet-vacancy-service skillnet-matching-service skillnet-frontend || exit 0'
                 bat 'docker compose build frontend'
                 bat 'docker compose build user-service'
                 bat 'docker compose build vacancy-service'
