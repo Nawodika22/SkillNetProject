@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CONTEXT = 'desktop-linux'
+        DOCKER_HOST = 'npipe:////./pipe/dockerDesktopLinuxEngine'
     }
 
     stages {
@@ -17,11 +17,11 @@ pipeline {
         stage('Verify Environment') {
             steps {
                 echo 'Checking Docker and Java versions on Windows...'
-                bat 'docker context use desktop-linux || rem'
                 bat 'docker --version'
                 bat 'docker compose version'
             }
         }
+
 
 
         stage('Build & Deploy with Docker Compose') {
