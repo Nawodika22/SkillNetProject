@@ -1,7 +1,12 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_CONTEXT = 'desktop-linux'
+    }
+
     stages {
+
         stage('Checkout Code') {
             steps {
                 echo 'Checking out source code from Git repository...'
@@ -12,10 +17,12 @@ pipeline {
         stage('Verify Environment') {
             steps {
                 echo 'Checking Docker and Java versions on Windows...'
+                bat 'docker context use desktop-linux || rem'
                 bat 'docker --version'
                 bat 'docker compose version'
             }
         }
+
 
         stage('Build & Deploy with Docker Compose') {
             steps {
