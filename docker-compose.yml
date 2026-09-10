@@ -1,0 +1,108 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: skillnet-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: skillnet_db
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - skillnet-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  user-service:
+    build:
+      context: ./backend/user-service
+      dockerfile: Dockerfile
+    container_name: skillnet-user-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: skillnet_db
+      DB_USER: root
+      DB_PASSWORD: ""
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - skillnet-net
+
+  vacancy-service:
+    build:
+      context: ./backend/vacancy-service
+      dockerfile: Dockerfile
+    container_name: skillnet-vacancy-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: skillnet_db
+      DB_USER: root
+      DB_PASSWORD: ""
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - skillnet-net
+
+  matching-service:
+    build:
+      context: ./backend/matching-service
+      dockerfile: Dockerfile
+    container_name: skillnet-matching-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: skillnet_db
+      DB_USER: root
+      DB_PASSWORD: ""
+      VACANCY_SERVICE_URL: http://vacancy-service:8082
+      USER_SERVICE_URL: http://user-service:8081
+    depends_on:
+      mysql:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      vacancy-service:
+        condition: service_started
+    networks:
+      - skillnet-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: skillnet-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - user-service
+      - vacancy-service
+      - matching-service
+    networks:
+      - skillnet-net
+
+networks:
+  skillnet-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local

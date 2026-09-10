@@ -18,6 +18,12 @@ public class MatchingService {
     private final NotificationService notificationService;
     private final RestClient restClient;
 
+    @org.springframework.beans.factory.annotation.Value("${services.vacancy.url:http://localhost:8082}")
+    private String vacancyServiceUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${services.user.url:http://localhost:8081}")
+    private String userServiceUrl;
+
     public MatchingService(MatchRepository matchRepository, NotificationService notificationService, RestClient restClient) {
         this.matchRepository = matchRepository;
         this.notificationService = notificationService;
@@ -27,7 +33,7 @@ public class MatchingService {
     public List<MatchResult> matchWorkersForVacancy(Long vacancyId) {
         // 1. Fetch vacancy from Member 2 (Port 8082)
         VacancyDTO vacancy = restClient.get()
-                .uri("http://localhost:8082/api/vacancies/" + vacancyId)
+                .uri(vacancyServiceUrl + "/api/vacancies/" + vacancyId)
                 .retrieve()
                 .body(VacancyDTO.class);
 
@@ -39,7 +45,7 @@ public class MatchingService {
         List<WorkerDTO> workers = List.of();
         try {
             workers = restClient.get()
-                    .uri("http://localhost:8081/api/workers/search")
+                    .uri(userServiceUrl + "/api/workers/search")
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<WorkerDTO>>() {});
         } catch (Exception e) {
