@@ -11,31 +11,18 @@ pipeline {
 
         stage('Verify Environment') {
             steps {
-                echo 'Checking Docker versions...'
-                script {
-                    if (isUnix()) {
-                        sh 'docker --version'
-                        sh 'docker compose version'
-                    } else {
-                        bat 'docker --version'
-                        bat 'docker compose version'
-                    }
-                }
+                echo 'Checking Docker and Java versions on Windows...'
+                bat 'docker --version'
+                bat 'docker compose version'
             }
         }
 
         stage('Build & Deploy with Docker Compose') {
             steps {
                 echo 'Building Docker images and starting SkillNet containers...'
-                script {
-                    if (isUnix()) {
-                        sh 'docker compose down --remove-orphans || true'
-                        sh 'docker compose up -d --build'
-                    } else {
-                        bat 'docker compose down --remove-orphans || ver >nul'
-                        bat 'docker compose up -d --build'
-                    }
-                }
+                bat 'docker compose down --remove-orphans'
+                bat 'docker compose build --parallel=false'
+                bat 'docker compose up -d'
             }
         }
 
@@ -45,11 +32,7 @@ pipeline {
                 sleep 20
                 script {
                     echo 'Verifying running containers...'
-                    if (isUnix()) {
-                        sh 'docker compose ps'
-                    } else {
-                        bat 'docker compose ps'
-                    }
+                    bat 'docker compose ps'
                 }
             }
         }
@@ -68,13 +51,7 @@ pipeline {
         }
         failure {
             echo 'Pipeline encountered an error. Printing container logs...'
-            script {
-                if (isUnix()) {
-                    sh 'docker compose logs --tail=50'
-                } else {
-                    bat 'docker compose logs --tail=50'
-                }
-            }
+            bat 'docker compose logs --tail=50'
         }
     }
 }
