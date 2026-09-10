@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const VACANCY_API_URL = 'http://localhost:8082/api/vacancies';
+const VACANCY_API_URL = '/api/vacancies';
 
 export const getAllVacancies = async () => {
   const response = await axios.get(VACANCY_API_URL);

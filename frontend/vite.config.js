@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api/vacancies': 'http://localhost:8082',
+      '/api/matches': 'http://localhost:8083',
+      '/api/notifications': 'http://localhost:8083',
       '/api': 'http://localhost:8081',
     },
   },

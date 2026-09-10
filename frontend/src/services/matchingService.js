@@ -1,5 +1,5 @@
-const MATCHING_API_BASE = 'http://localhost:8083/api/matches';
-const NOTIFICATION_API_BASE = 'http://localhost:8083/api/notifications';
+const MATCHING_API_BASE = '/api/matches';
+const NOTIFICATION_API_BASE = '/api/notifications';
 
 export const matchingApi = {
   getMatchesForVacancy: async (vacancyId) => {

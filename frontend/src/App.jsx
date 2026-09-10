@@ -21,7 +21,7 @@ const api = async (path, options = {}) => {
 }
 
 // Vacancy Service (Port 8082 - Member 2) API Calls
-const VACANCY_API_BASE = 'http://localhost:8082/api/vacancies'
+const VACANCY_API_BASE = '/api/vacancies'
 const vacancyApi = {
   getAll: () => fetch(VACANCY_API_BASE).then((r) => r.json()),
   create: (data) =>
@@ -34,7 +34,7 @@ const vacancyApi = {
 }
 
 // Matching & Notification Service (Port 8083 - Member 3)
-const NOTIFICATION_API_BASE = 'http://localhost:8083/api/notifications'
+const NOTIFICATION_API_BASE = '/api/notifications'
 
 const getInitialAuth = () => {
   try {
