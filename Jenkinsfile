@@ -3,6 +3,9 @@ pipeline {
 
     environment {
         DOCKER_HOST = 'npipe:////./pipe/dockerDesktopLinuxEngine'
+        SONAR_HOST  = 'http://localhost:9000'
+        // Jenkins Credentials මඟින් Token එක Load කර ගැනීම
+        SONAR_TOKEN = credentials('sonar-token')
     }
 
     stages {
@@ -22,24 +25,28 @@ pipeline {
             }
         }
 
-
-
         stage('SonarQube Code Analysis') {
             steps {
                 echo 'Running SonarQube Code Quality & Security Analysis...'
+                
+                // Matching Service Scan
                 dir('backend/matching-service') {
-                    bat 'call mvnw.cmd compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || call mvn compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || rem'
+                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -DskipTests"
                 }
+                
+                // User Service Scan
                 dir('backend/user-service') {
-                    bat 'call mvnw.cmd compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || call mvn compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || rem'
+                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -DskipTests"
                 }
+                
+                // Vacancy Service Scan
                 dir('backend/vacancy-service') {
-                    bat 'call mvnw.cmd compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || call mvn compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || rem'
+                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -DskipTests"
                 }
             }
         }
 
-       stage('Build & Deploy with Docker Compose') {
+        stage('Build & Deploy with Docker Compose') {
             steps {
                 echo 'Building Docker images sequentially to ensure network stability...'
                 bat 'docker compose down --remove-orphans || exit 0'
@@ -82,5 +89,3 @@ pipeline {
         }
     }
 }
-
-
