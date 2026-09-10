@@ -35,11 +35,11 @@ public class MatchingService {
             throw new RuntimeException("Vacancy not found with ID: " + vacancyId);
         }
 
-        // 2. Fetch workers (Mock Port 4500)
+        // 2. Fetch workers from user-service (Port 8081)
         List<WorkerDTO> workers = List.of();
         try {
             workers = restClient.get()
-                    .uri("http://localhost:4500/api/workers/search")
+                    .uri("http://localhost:8081/api/workers/search")
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<WorkerDTO>>() {});
         } catch (Exception e) {

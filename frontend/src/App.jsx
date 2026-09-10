@@ -7,9 +7,13 @@ import {
 } from 'lucide-react'
 
 const api = async (path, options = {}) => {
+  const { headers = {}, ...rest } = options
   const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
+    ...rest,
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data.detail || data.message || data.error || 'Something went wrong')
@@ -29,11 +33,20 @@ const vacancyApi = {
   delete: (id) => fetch(`${VACANCY_API_BASE}/${id}`, { method: 'DELETE' }),
 }
 
-const emptyProfile = { name: '', profession: '', yearsOfExperience: '', location: '' }
-const storedAuth = { role: 'HR', id: 1, token: 'demo-token' }
+// Matching & Notification Service (Port 8083 - Member 3)
+const NOTIFICATION_API_BASE = 'http://localhost:8083/api/notifications'
+
+const getInitialAuth = () => {
+  try {
+    const raw = sessionStorage.getItem('skillnet-auth')
+    return raw ? JSON.parse(raw) : null
+  } catch (e) {
+    return null
+  }
+}
 
 function App() {
-  const [auth, setAuth] = useState(storedAuth)
+  const [auth, setAuth] = useState(getInitialAuth)
   const [authMode, setAuthMode] = useState(null)
   const [notice, setNotice] = useState(null)
   const [query, setQuery] = useState({ profession: '', location: '' })
@@ -62,12 +75,50 @@ function App() {
     setAuth(result)
     setAuthMode(null)
     setNotice({ type: 'success', text: result.role === 'WORKER' ? 'Your workspace is ready.' : 'HR workspace unlocked.' })
+    searchWorkers()
   }
 
   const logout = () => {
     sessionStorage.removeItem('skillnet-auth')
     setAuth(null)
     setNotice({ type: 'success', text: 'You have been signed out.' })
+  }
+
+  const handleContactWorker = async (worker) => {
+    const contactInfo = prompt(
+      `Request hire / service from ${worker.name} (${worker.profession}):\n\nEnter your Phone Number & job requirements:`
+    )
+    if (!contactInfo || !contactInfo.trim()) return
+
+    const workerId = worker.id || worker.workerId || 1
+
+    try {
+      const response = await fetch(NOTIFICATION_API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientWorkerId: workerId,
+          workerName: worker.name,
+          message: `Hire Inquiry: ${contactInfo.trim()}`,
+          status: 'SENT',
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save notification to database')
+      }
+
+      setNotice({
+        type: 'success',
+        text: `Hire inquiry sent to ${worker.name}! Saved in notifications database.`,
+      })
+    } catch (error) {
+      console.error(error)
+      setNotice({
+        type: 'error',
+        text: 'Notification service (Port 8083) not reachable. Please ensure matching-service is running.',
+      })
+    }
   }
 
   return (
@@ -83,12 +134,20 @@ function App() {
         </nav>
         <div className="nav-actions">
           {auth ? (
-            <button className="profile-chip" onClick={() => document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' })}>
-              <CircleUserRound size={17} /> {auth.role === 'HR' ? 'HR workspace' : 'My profile'}
-              <ChevronDown size={15} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button className="profile-chip" onClick={() => document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' })}>
+                <CircleUserRound size={17} /> {auth.role === 'HR' ? (auth.companyName || 'HR workspace') : (auth.name || 'My profile')}
+                <ChevronDown size={15} />
+              </button>
+              <button className="button button-quiet button-small" onClick={logout} title="Sign out">
+                <LogOut size={15} /> Sign out
+              </button>
+            </div>
           ) : (
-            <button className="button button-dark button-small" onClick={() => setAuthMode('login')}>Sign in <ArrowRight size={15} /></button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="button button-quiet button-small" onClick={() => setAuthMode('login')}>Sign in</button>
+              <button className="button button-coral button-small" onClick={() => setAuthMode('register')}>Join network <ArrowRight size={14} /></button>
+            </div>
           )}
         </div>
       </header>
@@ -128,7 +187,9 @@ function App() {
           </form>
           <div className="directory-header"><span>{workers.length} available {workers.length === 1 ? 'specialist' : 'specialists'}</span><span className="live-indicator"><i /> Live availability</span></div>
           <div className="worker-grid">
-            {workers.map((worker) => <WorkerCard key={worker.id} worker={worker} />)}
+            {workers.map((worker) => (
+              <WorkerCard key={worker.id || worker.workerId} worker={worker} onContact={handleContactWorker} />
+            ))}
             {!searching && workers.length === 0 && <div className="empty-state"><Compass size={25} /><strong>No matching workers yet</strong><span>Try a broader profession or location.</span></div>}
           </div>
         </section>
@@ -144,39 +205,248 @@ function App() {
   )
 }
 
-function WorkerCard({ worker }) {
+function WorkerCard({ worker, onContact }) {
   const initials = worker.name?.split(' ').map((part) => part[0]).slice(0, 2).join('') || 'SN'
-  return <article className="worker-card"><div className="card-top"><div className="avatar">{initials}</div><span className="available-pill"><i /> Available</span></div><h3>{worker.name}</h3><p className="worker-role">{worker.profession || 'Independent specialist'}</p><div className="worker-meta"><span><MapPin size={14} /> {worker.location || 'Location not listed'}</span><span><BriefcaseBusiness size={14} /> {worker.yearsOfExperience ?? 0} years exp.</span></div><div className="card-footer"><span>Verified profile</span><ShieldCheck size={16} /></div></article>
+  return (
+    <article className="worker-card">
+      <div className="card-top">
+        <div className="avatar">{initials}</div>
+        <span className="available-pill"><i /> Available</span>
+      </div>
+      <h3>{worker.name}</h3>
+      <p className="worker-role">{worker.profession || 'Independent specialist'}</p>
+      <div className="worker-meta">
+        <span><MapPin size={14} /> {worker.location || 'Location not listed'}</span>
+        <span><BriefcaseBusiness size={14} /> {worker.yearsOfExperience ?? 0} years exp.</span>
+      </div>
+      <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          Verified profile <ShieldCheck size={16} />
+        </span>
+        <button 
+          type="button" 
+          className="button button-coral button-small" 
+          onClick={() => onContact(worker)}
+        >
+          Request Hire
+        </button>
+      </div>
+    </article>
+  )
 }
 
 function AuthModal({ mode, onClose, onComplete, setNotice }) {
   const [isLogin, setIsLogin] = useState(mode === 'login')
   const [role, setRole] = useState('WORKER')
-  const [form, setForm] = useState({ email: '', password: '', name: '', profession: '', yearsOfExperience: '', location: '', registrationKey: '' })
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    name: '',
+    profession: '',
+    yearsOfExperience: '',
+    location: '',
+    companyName: '',
+  })
   const [loading, setLoading] = useState(false)
-  const update = (key) => (event) => setForm({ ...form, [key]: event.target.value })
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const update = (key) => (event) => {
+    setErrorMsg('')
+    setForm({ ...form, [key]: event.target.value })
+  }
+
+  const switchMode = (loginState) => {
+    setIsLogin(loginState)
+    setErrorMsg('')
+  }
+
   const submit = async (event) => {
-    event.preventDefault(); setLoading(true)
+    event.preventDefault()
+    setErrorMsg('')
+    setLoading(true)
     try {
       const path = isLogin ? '/api/auth/login' : `/api/auth/register/${role.toLowerCase()}`
-      const body = isLogin ? { email: form.email, password: form.password } : {
-        email: form.email, password: form.password, name: form.name,
-        profession: role === 'WORKER' ? form.profession : undefined,
-        yearsOfExperience: role === 'WORKER' && form.yearsOfExperience ? Number(form.yearsOfExperience) : undefined,
-        location: role === 'WORKER' ? form.location : undefined,
-      }
-      const headers = !isLogin && role === 'HR' ? { 'X-HR-Registration-Key': form.registrationKey } : {}
-      onComplete(await api(path, { method: 'POST', body: JSON.stringify(body), headers }))
-    } catch (error) { setNotice({ type: 'error', text: error.message }) } finally { setLoading(false) }
+      const body = isLogin
+        ? { email: form.email.trim(), password: form.password }
+        : role === 'WORKER'
+          ? {
+              name: form.name.trim(),
+              email: form.email.trim(),
+              password: form.password,
+              profession: form.profession ? form.profession.trim() : '',
+              yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : 0,
+              location: form.location ? form.location.trim() : '',
+            }
+          : {
+              name: form.name.trim(),
+              email: form.email.trim(),
+              password: form.password,
+              companyName: form.companyName ? form.companyName.trim() : form.name.trim() + ' Enterprise',
+              location: form.location ? form.location.trim() : 'Sri Lanka',
+            }
+
+      const result = await api(path, { method: 'POST', body: JSON.stringify(body) })
+      onComplete(result)
+    } catch (error) {
+      setErrorMsg(error.message)
+      setNotice({ type: 'error', text: error.message })
+    } finally {
+      setLoading(false)
+    }
   }
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="auth-modal"><button className="close-button" onClick={onClose} aria-label="Close"><X size={19} /></button><div className="modal-kicker"><span className="brand-mark"><Sparkles size={16} /></span> SkillNet network</div><h2>{isLogin ? 'Welcome back.' : 'Make your work visible.'}</h2><p className="modal-subtitle">{isLogin ? 'Sign in to continue to your workspace.' : 'Create a profile and let the right work find you.'}</p>{!isLogin && <div className="role-switch"><button className={role === 'WORKER' ? 'active' : ''} onClick={() => setRole('WORKER')}><Wrench size={16} /> Independent worker</button><button className={role === 'HR' ? 'active' : ''} onClick={() => setRole('HR')}><UsersRound size={16} /> Corporate HR</button></div>}<form onSubmit={submit}><label>Email address<input type="email" required value={form.email} onChange={update('email')} placeholder="you@example.com" /></label><label>Password<input type="password" minLength="8" required value={form.password} onChange={update('password')} placeholder="At least 8 characters" /></label>{!isLogin && <><label>Full name<input required value={form.name} onChange={update('name')} placeholder="Your name" /></label>{role === 'WORKER' ? <div className="form-row"><label>Profession<input value={form.profession} onChange={update('profession')} placeholder="e.g. Electrician" /></label><label>Experience<input type="number" min="0" value={form.yearsOfExperience} onChange={update('yearsOfExperience')} placeholder="Years" /></label></div> : <label>HR registration key<input required value={form.registrationKey} onChange={update('registrationKey')} placeholder="Provided by your administrator" /></label>}{role === 'WORKER' && <label>Location<input value={form.location} onChange={update('location')} placeholder="City or neighbourhood" /></label>}</>}<button className="button button-dark submit-button" disabled={loading}>{loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'} <ArrowRight size={16} /></button></form><p className="auth-switch">{isLogin ? 'New to SkillNet?' : 'Already have an account?'} <button onClick={() => setIsLogin(!isLogin)}>{isLogin ? 'Create an account' : 'Sign in'}</button></p></div></div>
+
+  return (
+    <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="auth-modal">
+        <button className="close-button" onClick={onClose} aria-label="Close"><X size={19} /></button>
+        <div className="modal-kicker"><span className="brand-mark"><Sparkles size={16} /></span> SkillNet network</div>
+        <h2>{isLogin ? 'Welcome back.' : 'Make your work visible.'}</h2>
+        <p className="modal-subtitle">
+          {isLogin ? 'Sign in to continue to your workspace.' : 'Create a profile and let the right work find you.'}
+        </p>
+
+        {errorMsg && (
+          <div className="modal-error-box">
+            <X size={16} /> <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {!isLogin && (
+          <div className="role-switch">
+            <button
+              type="button"
+              className={role === 'WORKER' ? 'active' : ''}
+              onClick={() => { setRole('WORKER'); setErrorMsg('') }}
+            >
+              <Wrench size={16} /> Independent worker
+            </button>
+            <button
+              type="button"
+              className={role === 'HR' ? 'active' : ''}
+              onClick={() => { setRole('HR'); setErrorMsg('') }}
+            >
+              <UsersRound size={16} /> Corporate HR
+            </button>
+          </div>
+        )}
+
+        <form onSubmit={submit}>
+          <label>
+            Email address
+            <input
+              type="email"
+              required
+              value={form.email}
+              onChange={update('email')}
+              placeholder="you@example.com"
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              minLength="6"
+              required
+              value={form.password}
+              onChange={update('password')}
+              placeholder="At least 6 characters"
+            />
+          </label>
+
+          {!isLogin && (
+            <>
+              <label>
+                {role === 'WORKER' ? 'Full name' : 'HR Representative Name'}
+                <input
+                  required
+                  value={form.name}
+                  onChange={update('name')}
+                  placeholder={role === 'WORKER' ? 'e.g. Kamal Perera' : 'e.g. Samantha Smith'}
+                />
+              </label>
+
+              {role === 'WORKER' ? (
+                <>
+                  <div className="form-row">
+                    <label>
+                      Profession
+                      <input
+                        value={form.profession}
+                        onChange={update('profession')}
+                        placeholder="e.g. Electrician, Plumber"
+                      />
+                    </label>
+                    <label>
+                      Experience (Years)
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.yearsOfExperience}
+                        onChange={update('yearsOfExperience')}
+                        placeholder="0"
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    Location
+                    <input
+                      value={form.location}
+                      onChange={update('location')}
+                      placeholder="City or neighbourhood (e.g. Colombo)"
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label>
+                    Company Name
+                    <input
+                      required
+                      value={form.companyName}
+                      onChange={update('companyName')}
+                      placeholder="e.g. Colombo Logistics Ltd"
+                    />
+                  </label>
+                  <label>
+                    Company Location
+                    <input
+                      value={form.location}
+                      onChange={update('location')}
+                      placeholder="e.g. Colombo 03"
+                    />
+                  </label>
+                </>
+              )}
+            </>
+          )}
+
+          <button className="button button-dark submit-button" disabled={loading}>
+            {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'} <ArrowRight size={16} />
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          {isLogin ? 'New to SkillNet?' : 'Already have an account?'}
+          <button type="button" onClick={() => switchMode(!isLogin)}>
+            {isLogin ? 'Create an account' : 'Sign in'}
+          </button>
+        </p>
+      </div>
+    </div>
+  )
 }
 
 function Workspace({ auth, setNotice, onLogout }) {
-  const [profile, setProfile] = useState(emptyProfile)
-  const [available, setAvailable] = useState(false)
+  const [profile, setProfile] = useState({
+    name: auth?.name || '',
+    profession: auth?.profession || '',
+    yearsOfExperience: auth?.yearsOfExperience ?? '',
+    location: auth?.location || '',
+  })
+  const [available, setAvailable] = useState(auth?.available ?? true)
   const [roster, setRoster] = useState([])
   const [loading, setLoading] = useState(false)
+  const [workerNotifications, setWorkerNotifications] = useState([])
 
   // Member 3 State: Selected Vacancy to match
   const [selectedVacancyId, setSelectedVacancyId] = useState(null)
@@ -191,7 +461,21 @@ function Workspace({ auth, setNotice, onLogout }) {
   })
   const [postingVacancy, setPostingVacancy] = useState(false)
 
-  const tokenHeaders = { Authorization: `Bearer ${auth.token}` }
+  const tokenHeaders = { Authorization: `Bearer ${auth?.token}` }
+
+  const loadWorkerNotifications = async () => {
+    const workerId = auth?.id || auth?.workerId
+    if (!workerId) return
+    try {
+      const res = await fetch(`${NOTIFICATION_API_BASE}/worker/${workerId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setWorkerNotifications(data)
+      }
+    } catch (e) {
+      console.error('Failed to load worker notifications:', e)
+    }
+  }
 
   const saveProfile = async (event) => {
     event.preventDefault()
@@ -273,11 +557,35 @@ function Workspace({ auth, setNotice, onLogout }) {
   }
 
   useEffect(() => {
-    if (auth.role === 'HR') {
+    if (!auth) return
+    if (auth.role === 'WORKER') {
+      loadWorkerNotifications()
+      setProfile({
+        name: auth.name || '',
+        profession: auth.profession || '',
+        yearsOfExperience: auth.yearsOfExperience ?? '',
+        location: auth.location || '',
+      })
+      setAvailable(auth.available ?? true)
+
+      api('/api/workers/me/profile', { headers: tokenHeaders })
+        .then((data) => {
+          if (data) {
+            setProfile({
+              name: data.name || '',
+              profession: data.profession || '',
+              yearsOfExperience: data.yearsOfExperience ?? '',
+              location: data.location || '',
+            })
+            if (data.available !== undefined) setAvailable(data.available)
+          }
+        })
+        .catch(() => {})
+    } else if (auth.role === 'HR') {
       loadRoster()
       loadVacancies()
     }
-  }, [auth.role])
+  }, [auth?.id, auth?.role])
 
   return (
     <section className="workspace-section" id="workspace">
@@ -322,6 +630,53 @@ function Workspace({ auth, setNotice, onLogout }) {
             </div>
             <button className="button button-coral" disabled={loading}>{loading ? 'Saving...' : 'Save profile'} <Check size={16} /></button>
           </form>
+
+          {/* Worker Notifications Section */}
+          <div className="roster-panel" style={{ marginTop: '1.5rem', width: '100%', maxWidth: '640px' }}>
+            <div className="roster-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div><span className="number-label">02 / NOTIFICATIONS</span><h3>Job Matches & Inquiries</h3></div>
+              <button 
+                type="button"
+                className="button button-quiet button-small" 
+                onClick={loadWorkerNotifications} 
+                style={{ marginLeft: 'auto' }}
+              >
+                Refresh
+              </button>
+            </div>
+            <div className="roster-list">
+              {workerNotifications.map((notif) => (
+                <div className="roster-row" key={notif.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontWeight: '600',
+                      fontSize: '0.82rem',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      background: notif.message?.toLowerCase().includes('hire') ? '#ffedd5' : '#e0f2fe',
+                      color: notif.message?.toLowerCase().includes('hire') ? '#c2410c' : '#0369a1',
+                    }}>
+                      {notif.message?.toLowerCase().includes('hire') ? '💼 Hire Request' : '⚡ Job Match'}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      {notif.createdAt ? new Date(notif.createdAt).toLocaleString() : 'Recent'}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#334155', lineHeight: 1.4 }}>{notif.message}</p>
+                </div>
+              ))}
+              {workerNotifications.length === 0 && (
+                <div className="empty-state">
+                  <Sparkles size={24} />
+                  <strong>No notifications yet</strong>
+                  <span>When employers match or request to hire you, notifications will appear here.</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="hr-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
