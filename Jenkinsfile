@@ -25,23 +25,27 @@ pipeline {
             }
         }
 
-        stage('SonarQube Code Analysis') {
+       stage('SonarQube Code Analysis') {
             steps {
                 echo 'Running SonarQube Code Quality & Security Analysis...'
                 
-                // Matching Service Scan
+                // 1. Matching Service Scan
                 dir('backend/matching-service') {
-                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -DskipTests"
+                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -Dsonar.ws.timeout=300 -DskipTests"
                 }
                 
-                // User Service Scan
+                sleep 10 // SonarQube server background task එකට විවේකයක්
+                
+                // 2. User Service Scan
                 dir('backend/user-service') {
-                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -DskipTests"
+                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -Dsonar.ws.timeout=300 -DskipTests"
                 }
                 
-                // Vacancy Service Scan
+                sleep 10 // SonarQube server background task එකට විවේකයක්
+                
+                // 3. Vacancy Service Scan
                 dir('backend/vacancy-service') {
-                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -DskipTests"
+                    bat "call mvnw.cmd compile sonar:sonar -Dsonar.host.url=${SONAR_HOST} -Dsonar.token=%SONAR_TOKEN% -Dsonar.login=%SONAR_TOKEN% -Dsonar.ws.timeout=300 -DskipTests"
                 }
             }
         }
