@@ -24,6 +24,21 @@ pipeline {
 
 
 
+        stage('SonarQube Code Analysis') {
+            steps {
+                echo 'Running SonarQube Code Quality & Security Analysis...'
+                dir('backend/matching-service') {
+                    bat 'call mvnw.cmd compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || call mvn compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || rem'
+                }
+                dir('backend/user-service') {
+                    bat 'call mvnw.cmd compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || call mvn compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || rem'
+                }
+                dir('backend/vacancy-service') {
+                    bat 'call mvnw.cmd compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || call mvn compile sonar:sonar -Dsonar.host.url=http://localhost:9000 -DskipTests || rem'
+                }
+            }
+        }
+
        stage('Build & Deploy with Docker Compose') {
             steps {
                 echo 'Building Docker images sequentially to ensure network stability...'
@@ -55,6 +70,7 @@ pipeline {
             echo 'SkillNet Microservices successfully built & deployed!'
             echo 'Frontend:   http://localhost:5173'
             echo 'phpMyAdmin: http://localhost:8089'
+            echo 'SonarQube:  http://localhost:9000'
             echo 'User Service: http://localhost:8081'
             echo 'Vacancy Service: http://localhost:8082'
             echo 'Matching Service: internal 8083 (via frontend /api)'
