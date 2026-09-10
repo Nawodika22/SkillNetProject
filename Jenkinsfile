@@ -24,11 +24,14 @@ pipeline {
 
 
 
-        stage('Build & Deploy with Docker Compose') {
+       stage('Build & Deploy with Docker Compose') {
             steps {
-                echo 'Building Docker images and starting SkillNet containers...'
-                bat 'docker compose down --remove-orphans || rem'
-                bat 'docker compose build --parallel=false'
+                echo 'Building Docker images sequentially to ensure network stability...'
+                bat 'docker compose down --remove-orphans || exit 0'
+                bat 'docker compose build frontend'
+                bat 'docker compose build user-service'
+                bat 'docker compose build vacancy-service'
+                bat 'docker compose build matching-service'
                 bat 'docker compose up -d'
             }
         }
