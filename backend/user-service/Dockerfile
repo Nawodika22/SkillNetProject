@@ -1,14 +1,11 @@
 # Build Stage
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /app
 
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN sed -i 's/\r$//' ./mvnw && chmod +x ./mvnw
-
+COPY pom.xml ./
 COPY src ./src
 
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests -Djava.net.preferIPv4Stack=true
 
 # Runtime Stage
 FROM eclipse-temurin:21-jre-alpine
