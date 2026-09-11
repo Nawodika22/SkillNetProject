@@ -71,7 +71,7 @@ export default function MatchingDashboard({ vacancyId = 1 }) {
           </h2>
           <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Vacancy #{vacancyId} Candidate Recommendations</span>
         </div>
-        <button 
+        <button
           onClick={fetchMatches}
           style={{ padding: '8px 16px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', fontSize: '0.875rem' }}
         >
@@ -115,7 +115,7 @@ export default function MatchingDashboard({ vacancyId = 1 }) {
               </div>
 
               <p style={{ margin: '8px 0 4px', color: '#334155', fontSize: '0.92rem' }}>
-                <strong>Role:</strong> {item.vacancyTitle}
+                <strong>Matched Role:</strong> {item.vacancyTitle}
               </p>
               <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b' }}>
                 <strong>Criteria Met:</strong> {item.matchReason}
@@ -171,4 +171,4 @@ export default function MatchingDashboard({ vacancyId = 1 }) {
       )}
     </div>
   );
-}
+}

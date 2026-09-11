@@ -24,7 +24,8 @@ public class MatchingService {
     @org.springframework.beans.factory.annotation.Value("${services.user.url:http://localhost:8081}")
     private String userServiceUrl;
 
-    public MatchingService(MatchRepository matchRepository, NotificationService notificationService, RestClient restClient) {
+    public MatchingService(MatchRepository matchRepository, NotificationService notificationService,
+            RestClient restClient) {
         this.matchRepository = matchRepository;
         this.notificationService = notificationService;
         this.restClient = restClient;
@@ -47,7 +48,8 @@ public class MatchingService {
             workers = restClient.get()
                     .uri(userServiceUrl + "/api/workers/search")
                     .retrieve()
-                    .body(new ParameterizedTypeReference<List<WorkerDTO>>() {});
+                    .body(new ParameterizedTypeReference<List<WorkerDTO>>() {
+                    });
         } catch (Exception e) {
             System.out.println("Worker fetch error: " + e.getMessage());
         }
@@ -62,16 +64,23 @@ public class MatchingService {
             double score = 0.0;
             StringBuilder reason = new StringBuilder();
 
-            // 50% Profession Match
+            // 50% Profession Match (Mandatory requirement)
+            boolean professionMatched = false;
             if (vacancy.getJobTitle() != null && worker.getProfession() != null &&
-                vacancy.getJobTitle().trim().equalsIgnoreCase(worker.getProfession().trim())) {
+                    vacancy.getJobTitle().trim().equalsIgnoreCase(worker.getProfession().trim())) {
                 score += 50.0;
                 reason.append("Profession matched; ");
+                professionMatched = true;
+            }
+
+            // Candidate must have a matching profession for this vacancy
+            if (!professionMatched) {
+                continue;
             }
 
             // 30% Location Match
             if (vacancy.getTargetLocation() != null && worker.getLocation() != null &&
-                vacancy.getTargetLocation().trim().equalsIgnoreCase(worker.getLocation().trim())) {
+                    vacancy.getTargetLocation().trim().equalsIgnoreCase(worker.getLocation().trim())) {
                 score += 30.0;
                 reason.append("Location matched; ");
             }
@@ -108,8 +117,7 @@ public class MatchingService {
                             worker.getId(),
                             worker.getName(),
                             vacancy.getJobTitle(),
-                            score
-                    );
+                            score);
                 }
             }
         }
